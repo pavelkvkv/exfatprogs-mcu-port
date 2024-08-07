@@ -1,4 +1,8 @@
-
+/***
+ * @file blkdev_wrapper.c
+ * @author Pavel kv
+ * @date 2024-06-00
+ */
 #include "my_types.h"
 
 #include <stdio.h>
@@ -16,16 +20,25 @@
 #include "blkdev_wrapper.h"
 #define TAG "Fsck-wrapper"
 
-// Статическая переменная для хранения файлового дескриптора
-static int blkdev_fd		 = -1;
-static off64_t position		 = 0; // Текущая позиция в файле (разделе)
-static s64 filesystem_offset = 0; // Смещение раздела
-static s64 blkdev_size		 = 0; // Размер раздела
+
+// Static variable to store the file descriptor
+static int blkdev_fd = -1;
+static off64_t position = 0; // Current position in the file (partition)
+static s64 filesystem_offset = 0; // Partition offset
+static s64 blkdev_size = 0; // Partition size
 
 static int mmc_read(u8 *buff, u64 addr, u32 count);
 static int mmc_write(const u8 *buff, u64 addr, u32 count);
 
-// Функция для открытия файла (аналог open)
+/**
+ * @brief Function to open a file (analogous to open).
+ *
+ * Opens a file and sets the file descriptor.
+ *
+ * @param[in] pathname Pathname of the file to open.
+ * @param[in] flags Flags for opening the file.
+ * @return File descriptor if successful, or -1 if failed.
+ */
 int w_open(const char *pathname, int flags)
 {
 	logI("");
@@ -66,7 +79,13 @@ int w_open(const char *pathname, int flags)
 	return blkdev_fd;
 }
 
-// Функция для записи в файл (аналог write)
+/***
+ * @brief Function for writing to the file (analogous to write).
+ * @param[in] fd File descriptor.
+ * @param[in] buf Buffer to write.
+ * @param[in] count Number of bytes to write.
+ * @return Number of bytes written if successful, or -1 if failed.
+ */
 ssize64_t w_write(int fd, const void *buf, size64_t count)
 {
 	logD("(%d, %p, %d)", fd, buf, count);
@@ -75,7 +94,13 @@ ssize64_t w_write(int fd, const void *buf, size64_t count)
 	return result;
 }
 
-// Функция для чтения из файла (аналог read)
+/***
+ * @brief Function for reading from the file (analogous to read).
+ * @param[in] fd File descriptor.
+ * @param[in] buf Buffer to read into.
+ * @param[in] count Number of bytes to read.
+ * @return Number of bytes read if successful, or -1 if failed.
+ */
 ssize64_t w_read(int fd, void *buf, size64_t count)
 {
 	logD("(%d, %p, %d)", fd, buf, count);
@@ -84,7 +109,13 @@ ssize64_t w_read(int fd, void *buf, size64_t count)
 	return result;
 }
 
-// Функция для перемещения указателя в файле (аналог lseek)
+/***
+ * @brief Function for seeking in the file (analogous to lseek).
+ * @param[in] fd File descriptor.
+ * @param[in] offset Offset to seek.
+ * @param[in] whence Seek mode.
+ * @return New position if successful, or -1 if failed.
+ */
 off64_t w_lseek(int fd, off64_t offset, int whence)
 {
 	_Static_assert(sizeof(off64_t) == 8, "sizeof(off64_t) != 8");
@@ -123,7 +154,14 @@ off64_t w_lseek(int fd, off64_t offset, int whence)
 	return position;
 }
 
-// Функция для чтения из файла по смещению (аналог pread)
+/***
+ * @brief Function for reading from the file (analogous to pread).
+ * @param[in] fd File descriptor.
+ * @param[in] buf Buffer to read into.
+ * @param[in] count Number of bytes to read.
+ * @param[in] offset Offset to read from.
+ * @return Number of bytes read if successful, or -1 if failed.
+ */
 ssize64_t w_pread(int fd, void *buf, size64_t count, off64_t offset)
 {
 	logD("(%d, %p, %d, %lld)", fd, buf, count, (s64)offset);
@@ -145,7 +183,14 @@ ssize64_t w_pread(int fd, void *buf, size64_t count, off64_t offset)
 	return result;
 }
 
-// Функция для записи в файл по смещению (аналог pwrite)
+/***
+ * @brief Function for writing to the file (analogous to pwrite).
+ * @param[in] fd File descriptor.
+ * @param[in] buf Buffer to write.
+ * @param[in] count Number of bytes to write.
+ * @param[in] offset Offset to write to.
+ * @return Number of bytes written if successful, or -1 if failed.
+ */
 ssize64_t w_pwrite(int fd, const void *buf, size64_t count, off64_t offset)
 {
 	logI("(%d, %p, %d, %lld)", fd, buf, count, (s64)offset);
@@ -168,7 +213,11 @@ ssize64_t w_pwrite(int fd, const void *buf, size64_t count, off64_t offset)
 	return result;
 }
 
-// Функция для закрытия файла (аналог close)
+/***
+ * @brief Function for closing the file.
+ * @param[in] fd File descriptor.
+ * @return 0 if successful, or -1 if failed.
+ */
 int w_close(int fd)
 {
 	UNUSED(fd);
@@ -186,6 +235,11 @@ int w_close(int fd)
 	return 0;
 }
 
+/***
+ * @brief Function for syncing the file.
+ * @param[in] fd File descriptor.
+ * @return 0 if successful, or -1 if failed.
+ */
 int w_fsync(int fd)
 {
 	// UNUSED(fd);
@@ -200,6 +254,16 @@ int w_fsync(int fd)
 	return 0;
 }
 
+/**
+ * @brief Function to read from MMC.
+ *
+ * Reads data from the MMC device into the provided buffer.
+ *
+ * @param[out] buff Data buffer to store read data.
+ * @param[in] addr Start address of byte to read.
+ * @param[in] count Number of bytes to read.
+ * @return Number of bytes read if successful, or error code if failed.
+ */
 static int mmc_read(
 	u8 *buff, /* Data buffer to store read data */
 	u64 addr, /* Start address of byte to read */
@@ -295,6 +359,16 @@ static int mmc_read(
 	return count_ret;
 }
 
+/**
+ * @brief Function to write to MMC.
+ *
+ * Writes data from the provided buffer to the MMC device.
+ *
+ * @param[in] buff Data buffer to write data from.
+ * @param[in] addr Start address of byte to write.
+ * @param[in] count Number of bytes to write.
+ * @return Number of bytes written if successful, or error code if failed.
+ */
 static int mmc_write(
 	const u8 *buff, /* Data buffer to write data from */
 	u64 addr,		/* Start address of byte to write */

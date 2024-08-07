@@ -1,3 +1,9 @@
+/***
+ * @file mem_wrapper.c
+ * @author Pavel kv
+ * @date 2024-06-00
+ */
+
 #include <stdlib.h>
 #include "FreeRTOS.h"
 #include "mem_wrapper.h"
@@ -6,81 +12,13 @@
 #include <errno.h>
 #include "log.h"
 
-// /**
-//  * Обертка для xPortMalloc из FreeRTOS.
-//  *
-//  * @param size Размер памяти, которую необходимо выделить.
-//  * @return Указатель на выделенную память или NULL, если память не могла быть выделена.
-//  */
-// void *w_malloc(size_t size)
-// {
-// 	void *ptr = pvPortMalloc(size);
-//     logI("%d bytes, ptr = %p\n", size, ptr);
-// }
-
-// /**
-//  * Обертка для xPortCalloc из FreeRTOS.
-//  *
-//  * @param num Количество элементов.
-//  * @param size Размер одного элемента.
-//  * @return Указатель на выделенную и обнулённую память или NULL, если память не могла быть выделена.
-//  */
-// void *w_calloc(size_t num, size_t size)
-// {
-// 	void *ptr = pvPortCalloc(num , size);
-//     logI("%d bytes, ptr = %p\n", num * size, ptr);
-// 	return ptr;
-// }
-
-// /**
-//  * Обертка для vPortFree из FreeRTOS.
-//  *
-//  * @param ptr Указатель на память, которую необходимо освободить.
-//  */
-// void w_free(void *ptr)
-// {
-//     logI("%p\n", ptr);
-// 	vPortFree(ptr);
-// }
-
-/**
- * Обертка для xPortRealloc из FreeRTOS.
- * Данная функция обычно отсутствует в FreeRTOS, поэтому ее необходимо реализовать вручную.
+/***
+ * @brief Convert a multibyte string to a wide character string
  *
- * @param ptr Указатель на ранее выделенную память или NULL.
- * @param size Новый размер памяти.
- * @return Указатель на выделенную память или NULL, если память не могла быть выделена.
+ * @param dest Pointer to the destination buffer
+ * @param src Pointer to the source string
+ * @param n Maximum number of wide characters to convert
  */
-// void* w_realloc(void* ptr, size_t size) {
-//     if (ptr == NULL) {
-//         return pvPortMalloc(size);
-//     }
-
-//     if (size == 0) {
-//         vPortFree(ptr);
-//         return NULL;
-//     }
-
-//     // Выделяем новую память
-//     void* new_ptr = pvPortMalloc(size);
-//     if (new_ptr == NULL) {
-//         return NULL;
-//     }
-
-//     // Переносим данные в новую область памяти
-//     // (Учтите, что на практике это может потребовать уведомления о размере старого блока)
-//     size_t old_size = malloc_usable_size(ptr); // malloc_usable_size не является частью стандарта C
-//     if (old_size > size) {
-//         old_size = size;
-//     }
-//     memcpy(new_ptr, ptr, old_size);
-
-//     // Освобождаем старую память
-//     vPortFree(ptr);
-
-//     return new_ptr;
-// }
-
 size_t w_mbstowcs(wchar_t *dest, const char *src, size_t n)
 {
     size_t i = 0;
@@ -181,6 +119,13 @@ size_t w_mbstowcs(wchar_t *dest, const char *src, size_t n)
     return len;
 }
 
+/***
+ * @brief Convert a wide character string to a multibyte string
+ *
+ * @param dest Pointer to the destination buffer
+ * @param src Pointer to the source string
+ * @param n Maximum number of multibyte characters to convert
+ */
 size_t w_wcrtomb(char *dest, wchar_t wc, mbstate_t *ps)
 {
     if (dest == NULL)
@@ -248,27 +193,3 @@ int print_utf16le(const char *utf16_string, size_t length)
     return 0;
 }
 
-/**
- * @brief Копирование памяти.
- *
- * Функция копирует n байт из области памяти src в область памяти dest.
- *
- * @param[out] dest Указатель на место, куда будут скопированы данные.
- * @param[in] src Указатель на источник данных.
- * @param[in] n Количество байт для копирования.
- * @return Указатель на dest.
- */
-void *my_memcpy(void *dest, const void *src, size_t n)
-{
-    // Преобразуем указатели в байтовые указатели для побайтового копирования
-    unsigned char *d = (unsigned char *)dest;
-    const unsigned char *s = (const unsigned char *)src;
-
-    // Копируем n байт из src в dest
-    for (size_t i = 0; i < n; i++)
-    {
-        d[i] = s[i];
-    }
-
-    return dest;
-}

@@ -1,4 +1,11 @@
+/***
+ * @file mem_wrapper.h
+ * @author Pavel kv
+ * @date 2024-06-00
+ */
 
+#ifndef MEM_WRAPPER_H
+#define MEM_WRAPPER_H
 
 #include <stdlib.h>
 #include "FreeRTOS.h"
@@ -39,6 +46,5 @@
 size_t w_mbstowcs(wchar_t *dest, const char *src, size_t n);
 size_t w_wcrtomb(char *dest, wchar_t wc, mbstate_t *ps);
 int print_utf16le(const char *utf16_string, size_t length);
-void *my_memcpy(void *dest, const void *src, size_t n);
 
-#pragma once
+#endif // MEM_WRAPPER_H
