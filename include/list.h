@@ -3,8 +3,10 @@
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
 
+#include "my_types.h"
+
 #ifndef offsetof
-#define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+#define offsetof(TYPE, MEMBER) ((size64_t) &((TYPE *)0)->MEMBER)
 #endif
 
 #define container_of(ptr, type, member) ({			\
@@ -30,7 +32,10 @@
  * using the generic single-entry routines.
  */
 struct list_head {
-	struct list_head *next, *prev;
+	struct list_head *next;
+	uint32_t padding0;
+	struct list_head *prev;
+	uint32_t padding1;
 };
 
 #define LIST_HEAD_INIT(name) { &(name), &(name) }

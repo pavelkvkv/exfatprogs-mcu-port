@@ -8,11 +8,16 @@
 #define _EXFAT_FS_H_
 
 #include "list.h"
+#include "libexfat.h"
 
 struct exfat_dentry;
 
+#define EXFAT_NAME_MAX			255
+#define NAME_BUFFER_SIZE		((EXFAT_NAME_MAX + 1) * 2)
+
 struct exfat_inode {
 	struct exfat_inode	*parent;
+	uint32_t padding0;
 	struct list_head	children;
 	struct list_head	sibling;
 	struct list_head	list;
@@ -21,13 +26,13 @@ struct exfat_inode {
 	uint64_t		size;
 	bool			is_contiguous;
 	struct exfat_dentry	*dentry_set;
+	uint32_t padding1;
 	int			dentry_count;
-	off_t			dev_offset;
+	off64_t			dev_offset;
 	__le16			name[0];	/* only for directory */
 };
 
-#define EXFAT_NAME_MAX			255
-#define NAME_BUFFER_SIZE		((EXFAT_NAME_MAX + 1) * 2)
+
 
 struct exfat {
 	struct exfat_blk_dev	*blk_dev;
@@ -51,8 +56,8 @@ struct exfat {
 
 struct exfat_dentry_loc {
 	struct exfat_inode	*parent;
-	off_t			file_offset;
-	off_t			dev_offset;
+	off64_t			file_offset;
+	off64_t			dev_offset;
 };
 
 struct path_resolve_ctx {

@@ -13,6 +13,7 @@
 #include "repair.h"
 #include "exfat_fs.h"
 #include "fsck.h"
+#include "mem_wrapper.h"
 
 struct exfat_repair_problem {
 	er_problem_code_t	prcode;
@@ -165,7 +166,7 @@ static int get_rename_from_user(struct exfat_de_iter *iter,
 		__le16 *utf16_name, int name_size)
 {
 	int len = 0;
-	char *rename = malloc(ENTRY_NAME_MAX + 2);
+	char *rename = w_malloc(ENTRY_NAME_MAX + 2);
 
 	if (!rename)
 		return -ENOMEM;
@@ -203,7 +204,7 @@ retry:
 	}
 
 out:
-	free(rename);
+	w_free(rename);
 
 	return len;
 }
@@ -217,7 +218,7 @@ static int generate_rename(struct exfat_de_iter *iter, __le16 *utf16_name,
 	if (iter->invalid_name_num > INVALID_NAME_NUM_MAX)
 		return -ERANGE;
 
-	rename = malloc(ENTRY_NAME_MAX + 1);
+	rename = w_malloc(ENTRY_NAME_MAX + 1);
 	if (!rename)
 		return -ENOMEM;
 
@@ -235,7 +236,7 @@ static int generate_rename(struct exfat_de_iter *iter, __le16 *utf16_name,
 
 	memset(utf16_name, 0, name_size);
 	err = exfat_utf16_enc(rename, utf16_name, name_size);
-	free(rename);
+	w_free(rename);
 
 	return err;
 }

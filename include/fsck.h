@@ -6,6 +6,8 @@
 #define _FSCK_H
 
 #include "list.h"
+#include "exfat_dir.h"
+#include "my_types.h"
 
 enum fsck_ui_options {
 	FSCK_OPTS_REPAIR_ASK	= 0x01,
@@ -32,6 +34,8 @@ struct exfat_fsck {
 	char *name_hash_bitmap;
 };
 
-off_t exfat_c2o(struct exfat *exfat, unsigned int clus);
+//off64_t exfat_c2o(struct exfat *exfat, unsigned int clus);
+
+int fsck_exfat_entry_point(int argc, char *const argv[]);
 
 #endif

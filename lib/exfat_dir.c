@@ -12,9 +12,10 @@
 #include <time.h>
 
 #include "exfat_ondisk.h"
-#include "libexfat.h"
+//#include "libexfat.h"
 #include "exfat_fs.h"
 #include "exfat_dir.h"
+#include "mem_wrapper.h"
 
 static struct path_resolve_ctx path_resolve_ctx;
 
@@ -35,7 +36,7 @@ static inline struct buffer_desc *exfat_de_iter_get_buffer(
 
 static ssize_t write_block(struct exfat_de_iter *iter, unsigned int block)
 {
-	off_t device_offset;
+	off64_t device_offset;
 	struct exfat *exfat = iter->exfat;
 	struct buffer_desc *desc;
 	unsigned int i;
@@ -93,7 +94,7 @@ static int read_ahead_next_blocks(struct exfat_de_iter *iter,
 {
 #ifdef POSIX_FADV_WILLNEED
 	struct exfat *exfat = iter->exfat;
-	off_t device_offset;
+	off64_t device_offset;
 	clus_t clus_count, ra_clus, ra_p_clus;
 	unsigned int size;
 	int ret = 0;
@@ -146,7 +147,7 @@ static int read_ahead_next_dir_blocks(struct exfat_de_iter *iter)
 	struct exfat *exfat = iter->exfat;
 	struct list_head *current;
 	struct exfat_inode *next_inode;
-	off_t offset;
+	off64_t offset;
 
 	if (list_empty(&exfat->dir_list))
 		return -EINVAL;
@@ -172,7 +173,7 @@ static ssize_t read_block(struct exfat_de_iter *iter, unsigned int block)
 {
 	struct exfat *exfat = iter->exfat;
 	struct buffer_desc *desc, *prev_desc;
-	off_t device_offset;
+	off64_t device_offset;
 	ssize_t ret;
 
 	desc = exfat_de_iter_get_buffer(iter, block);
@@ -260,7 +261,7 @@ int exfat_de_iter_init(struct exfat_de_iter *iter, struct exfat *exfat,
 int exfat_de_iter_get(struct exfat_de_iter *iter,
 			int ith, struct exfat_dentry **dentry)
 {
-	off_t next_de_file_offset;
+	off64_t next_de_file_offset;
 	ssize_t ret;
 	unsigned int block;
 	struct buffer_desc *bd;
@@ -293,7 +294,7 @@ int exfat_de_iter_get(struct exfat_de_iter *iter,
 int exfat_de_iter_get_dirty(struct exfat_de_iter *iter,
 			int ith, struct exfat_dentry **dentry)
 {
-	off_t next_file_offset;
+	off64_t next_file_offset;
 	unsigned int block;
 	int ret, sect_idx;
 	struct buffer_desc *bd;
@@ -333,7 +334,7 @@ int exfat_de_iter_advance(struct exfat_de_iter *iter, int skip_dentries)
 	return 0;
 }
 
-off_t exfat_de_iter_device_offset(struct exfat_de_iter *iter)
+off64_t exfat_de_iter_device_offset(struct exfat_de_iter *iter)
 {
 	struct buffer_desc *bd;
 	unsigned int block;
@@ -347,7 +348,7 @@ off_t exfat_de_iter_device_offset(struct exfat_de_iter *iter)
 		iter->de_file_offset % iter->read_size;
 }
 
-off_t exfat_de_iter_file_offset(struct exfat_de_iter *iter)
+off64_t exfat_de_iter_file_offset(struct exfat_de_iter *iter)
 {
 	return iter->de_file_offset;
 }
@@ -363,7 +364,7 @@ int exfat_lookup_dentry_set(struct exfat *exfat, struct exfat_inode *parent,
 {
 	struct buffer_desc *bd = NULL;
 	struct exfat_dentry *dentry = NULL;
-	off_t free_file_offset = 0, free_dev_offset = 0;
+	off64_t free_file_offset = 0, free_dev_offset = 0;
 	struct exfat_de_iter de_iter;
 	int dentry_count, empty_dentry_count = 0;
 	int retval;
@@ -408,7 +409,7 @@ int exfat_lookup_dentry_set(struct exfat *exfat, struct exfat_inode *parent,
 				struct exfat_dentry *d;
 				int i;
 
-				filter->out.dentry_set = calloc(dentry_count,
+				filter->out.dentry_set = w_calloc(dentry_count,
 								sizeof(struct exfat_dentry));
 				if (!filter->out.dentry_set) {
 					retval = -ENOMEM;
@@ -577,6 +578,7 @@ uint16_t exfat_calc_name_hash(struct exfat *exfat,
 
 	for (i = 0; i < len; i++) {
 		ch = exfat->upcase_table[le16_to_cpu(name[i])];
+		ch = cpu_to_le16(ch);
 
 		/* use += to avoid promotion to int; UBSan complaints about signed overflow */
 		chksum = (chksum << 15) | (chksum >> 1);
@@ -622,7 +624,7 @@ int exfat_build_file_dentry_set(struct exfat *exfat, const char *name,
 
 	name_len = retval / 2;
 	dcount = 2 + DIV_ROUND_UP(name_len, ENTRY_NAME_MAX);
-	dset = calloc(dcount, DENTRY_SIZE);
+	dset = w_calloc(dcount, DENTRY_SIZE);
 	if (!dset)
 		return -ENOMEM;
 
@@ -691,7 +693,7 @@ int exfat_update_file_dentry_set(struct exfat *exfat,
 
 		dset[1].dentry.stream.name_len = (__u8)name_len;
 		dset[1].dentry.stream.name_hash =
-			cpu_to_le16(exfat_calc_name_hash(exfat, utf16_name, name_len));
+			exfat_calc_name_hash(exfat, utf16_name, name_len);
 
 		for (i = 2; i < dcount; i++) {
 			dset[i].type = EXFAT_NAME;
@@ -746,7 +748,7 @@ out_nospc:
 }
 
 static int exfat_map_cluster(struct exfat *exfat, struct exfat_inode *inode,
-			     off_t file_off, clus_t *mapped_clu)
+			     off64_t file_off, clus_t *mapped_clu)
 {
 	clus_t clu, next, count, last_count;
 
@@ -784,11 +786,11 @@ static int exfat_map_cluster(struct exfat *exfat, struct exfat_inode *inode,
 
 static int exfat_write_dentry_set(struct exfat *exfat,
 				  struct exfat_dentry *dset, int dcount,
-				  off_t dev_off, off_t *next_dev_off)
+				  off64_t dev_off, off64_t *next_dev_off)
 {
 	clus_t clus;
 	unsigned int clus_off, dent_len, first_half_len, sec_half_len;
-	off_t first_half_off, sec_half_off = 0;
+	off64_t first_half_off, sec_half_off = 0;
 
 	if (exfat_o2c(exfat, dev_off, &clus, &clus_off))
 		return -ERANGE;
@@ -904,7 +906,7 @@ int exfat_add_dentry_set(struct exfat *exfat, struct exfat_dentry_loc *loc,
 			 bool need_next_loc)
 {
 	struct exfat_inode *parent = loc->parent;
-	off_t dev_off, next_dev_off;
+	off64_t dev_off, next_dev_off;
 
 	if (parent->is_contiguous ||
 	    (uint64_t)loc->file_offset > parent->size ||
@@ -958,6 +960,6 @@ int exfat_create_file(struct exfat *exfat, struct exfat_inode *parent,
 	loc.dev_offset = filter.out.dev_offset;
 	err = exfat_add_dentry_set(exfat, &loc, dset, dcount, false);
 out:
-	free(dset);
+	w_free(dset);
 	return err;
 }

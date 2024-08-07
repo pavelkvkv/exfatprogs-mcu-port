@@ -4,11 +4,16 @@
  */
 
 #ifndef _LIBEXFAT_H
+#define _LIBEXFAT_H
 
 #include <stdbool.h>
 #include <sys/types.h>
 #include <wchar.h>
 #include <limits.h>
+
+#include "exfat_ondisk.h"
+
+#include "my_types.h"
 
 typedef __u32 clus_t;
 
@@ -152,15 +157,15 @@ void boot_calc_checksum(unsigned char *sector, unsigned short size,
 void init_user_input(struct exfat_user_input *ui);
 int exfat_get_blk_dev_info(struct exfat_user_input *ui,
 		struct exfat_blk_dev *bd);
-ssize_t exfat_read(int fd, void *buf, size_t size, off_t offset);
-ssize_t exfat_write(int fd, void *buf, size_t size, off_t offset);
-ssize_t exfat_write_zero(int fd, size_t size, off_t offset);
+ssize64_t exfat_read(int fd, void *buf, size64_t size, off64_t offset);
+ssize64_t exfat_write(int fd, void *buf, size64_t size, off64_t offset);
+ssize64_t exfat_write_zero(int fd, size64_t size, off64_t offset);
 
-size_t exfat_utf16_len(const __le16 *str, size_t max_size);
-ssize_t exfat_utf16_enc(const char *in_str, __u16 *out_str, size_t out_size);
-ssize_t exfat_utf16_dec(const __u16 *in_str, size_t in_len,
-			char *out_str, size_t out_size);
-off_t exfat_get_root_entry_offset(struct exfat_blk_dev *bd);
+size64_t exfat_utf16_len(const __le16 *str, size64_t max_size);
+ssize64_t exfat_utf16_enc(const char *in_str, __u16 *out_str, size64_t out_size);
+ssize64_t exfat_utf16_dec(const __u16 *in_str, size64_t in_len,
+			char *out_str, size64_t out_size);
+off64_t exfat_get_root_entry_offset(struct exfat_blk_dev *bd);
 int exfat_read_volume_label(struct exfat *exfat);
 int exfat_set_volume_label(struct exfat *exfat, char *label_input);
 int __exfat_set_volume_guid(struct exfat_dentry *dentry, const char *guid);
@@ -182,9 +187,9 @@ int exfat_get_next_clus(struct exfat *exfat, clus_t clus, clus_t *next);
 int exfat_get_inode_next_clus(struct exfat *exfat, struct exfat_inode *node,
 			      clus_t clus, clus_t *next);
 int exfat_set_fat(struct exfat *exfat, clus_t clus, clus_t next_clus);
-off_t exfat_s2o(struct exfat *exfat, off_t sect);
-off_t exfat_c2o(struct exfat *exfat, unsigned int clus);
-int exfat_o2c(struct exfat *exfat, off_t device_offset,
+off64_t exfat_s2o(struct exfat *exfat, off64_t sect);
+off64_t exfat_c2o(struct exfat *exfat, unsigned int clus);
+int exfat_o2c(struct exfat *exfat, off64_t device_offset,
 	      unsigned int *clu, unsigned int *offset);
 bool exfat_heap_clus(struct exfat *exfat, clus_t clus);
 int exfat_root_clus_count(struct exfat *exfat);

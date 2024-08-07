@@ -8,6 +8,9 @@
 #ifndef _DIR_H_
 #define _DIR_H_
 
+#include "libexfat.h"
+//#include "my_types.h"
+
 struct exfat;
 struct exfat_inode;
 struct exfat_dentry_loc;
@@ -22,8 +25,8 @@ struct exfat_de_iter {
 	unsigned int		ra_partial_size;
 	unsigned int		read_size;		/* cluster size */
 	unsigned int		write_size;		/* sector size */
-	off_t			de_file_offset;
-	off_t			next_read_offset;
+	off64_t			de_file_offset;
+	off64_t			next_read_offset;
 	int			max_skip_dentries;
 #define INVALID_NAME_NUM_MAX	9999999
 	unsigned int		invalid_name_num;
@@ -45,7 +48,7 @@ struct exfat_lookup_filter {
 	struct {
 		struct exfat_dentry	*dentry_set;
 		int			dentry_count;
-		off_t			file_offset;
+		off64_t			file_offset;
 		/*
 		 * If the dentry_set found:
 		 *   - device offset where the dentry_set locates.
@@ -56,7 +59,7 @@ struct exfat_lookup_filter {
 		 *     if in.dentry_count = 0 or no enough empty dentry.
 		 *   - EOF if no empty dentry_set.
 		 */
-		off_t			dev_offset;
+		off64_t			dev_offset;
 	} out;
 };
 
@@ -68,8 +71,8 @@ int exfat_de_iter_get_dirty(struct exfat_de_iter *iter,
 			    int ith, struct exfat_dentry **dentry);
 int exfat_de_iter_flush(struct exfat_de_iter *iter);
 int exfat_de_iter_advance(struct exfat_de_iter *iter, int skip_dentries);
-off_t exfat_de_iter_device_offset(struct exfat_de_iter *iter);
-off_t exfat_de_iter_file_offset(struct exfat_de_iter *iter);
+off64_t exfat_de_iter_device_offset(struct exfat_de_iter *iter);
+off64_t exfat_de_iter_file_offset(struct exfat_de_iter *iter);
 
 int exfat_lookup_dentry_set(struct exfat *exfat, struct exfat_inode *parent,
 			    struct exfat_lookup_filter *filter);

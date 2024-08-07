@@ -11,10 +11,12 @@
 #include <errno.h>
 
 #include "exfat_ondisk.h"
-#include "libexfat.h"
+//#include "libexfat.h"
 
 #include "exfat_fs.h"
 #include "exfat_dir.h"
+#include "mem_wrapper.h"
+
 
 struct exfat_inode *exfat_alloc_inode(__u16 attr)
 {
@@ -22,7 +24,8 @@ struct exfat_inode *exfat_alloc_inode(__u16 attr)
 	int size;
 
 	size = offsetof(struct exfat_inode, name) + NAME_BUFFER_SIZE;
-	node = calloc(1, size);
+	//size = sizeof(struct exfat_inode);
+	node = w_calloc(1, size);
 	if (!node) {
 		exfat_err("failed to allocate exfat_node\n");
 		return NULL;
@@ -41,8 +44,8 @@ void exfat_free_inode(struct exfat_inode *node)
 {
 	if (node) {
 		if (node->dentry_set)
-			free(node->dentry_set);
-		free(node);
+			w_free(node->dentry_set);
+		w_free(node);
 	}
 }
 
@@ -106,20 +109,20 @@ void exfat_free_exfat(struct exfat *exfat)
 {
 	if (exfat) {
 		if (exfat->bs)
-			free(exfat->bs);
+			w_free(exfat->bs);
 		if (exfat->alloc_bitmap)
-			free(exfat->alloc_bitmap);
+			w_free(exfat->alloc_bitmap);
 		if (exfat->disk_bitmap)
-			free(exfat->disk_bitmap);
+			w_free(exfat->disk_bitmap);
 		if (exfat->ohead_bitmap)
-			free(exfat->ohead_bitmap);
+			w_free(exfat->ohead_bitmap);
 		if (exfat->upcase_table)
-			free(exfat->upcase_table);
+			w_free(exfat->upcase_table);
 		if (exfat->root)
 			exfat_free_inode(exfat->root);
 		if (exfat->lookup_buffer)
-			free(exfat->lookup_buffer);
-		free(exfat);
+			w_free(exfat->lookup_buffer);
+		w_free(exfat);
 	}
 }
 
@@ -127,9 +130,9 @@ struct exfat *exfat_alloc_exfat(struct exfat_blk_dev *blk_dev, struct pbr *bs)
 {
 	struct exfat *exfat;
 
-	exfat = calloc(1, sizeof(*exfat));
+	exfat = w_calloc(1, sizeof(*exfat));
 	if (!exfat) {
-		free(bs);
+		w_free(bs);
 		return NULL;
 	}
 
@@ -141,19 +144,19 @@ struct exfat *exfat_alloc_exfat(struct exfat_blk_dev *blk_dev, struct pbr *bs)
 	exfat->sect_size = EXFAT_SECTOR_SIZE(bs);
 
 	/* TODO: bitmap could be very large. */
-	exfat->alloc_bitmap = calloc(1, EXFAT_BITMAP_SIZE(exfat->clus_count));
+	exfat->alloc_bitmap = w_calloc(1, EXFAT_BITMAP_SIZE(exfat->clus_count));
 	if (!exfat->alloc_bitmap) {
 		exfat_err("failed to allocate bitmap\n");
 		goto err;
 	}
 
-	exfat->ohead_bitmap = calloc(1, EXFAT_BITMAP_SIZE(exfat->clus_count));
+	exfat->ohead_bitmap = w_calloc(1, EXFAT_BITMAP_SIZE(exfat->clus_count));
 	if (!exfat->ohead_bitmap) {
 		exfat_err("failed to allocate bitmap\n");
 		goto err;
 	}
 
-	exfat->disk_bitmap = calloc(1, EXFAT_BITMAP_SIZE(exfat->clus_count));
+	exfat->disk_bitmap = w_calloc(1, EXFAT_BITMAP_SIZE(exfat->clus_count));
 	if (!exfat->disk_bitmap) {
 		exfat_err("failed to allocate bitmap\n");
 		goto err;
@@ -175,12 +178,12 @@ struct buffer_desc *exfat_alloc_buffer(struct exfat *exfat)
 	unsigned int i;
 	unsigned int read_size = exfat_get_read_size(exfat);
 
-	bd = calloc(exfat->buffer_count, sizeof(*bd));
+	bd = w_calloc(exfat->buffer_count, sizeof(*bd));
 	if (!bd)
 		return NULL;
 
 	for (i = 0; i < exfat->buffer_count; i++) {
-		bd[i].buffer = malloc(read_size);
+		bd[i].buffer = w_malloc(read_size);
 		if (!bd[i].buffer)
 			goto err;
 
@@ -198,9 +201,9 @@ void exfat_free_buffer(const struct exfat *exfat, struct buffer_desc *bd)
 
 	for (i = 0; i < exfat->buffer_count; i++) {
 		if (bd[i].buffer)
-			free(bd[i].buffer);
+			w_free(bd[i].buffer);
 	}
-	free(bd);
+	w_free(bd);
 }
 
 /*
@@ -249,7 +252,9 @@ int exfat_resolve_path(struct path_resolve_ctx *ctx, struct exfat_inode *child)
 	int depth, i;
 	int name_len;
 	__le16 *utf16_path;
-	size_t in_size;
+	static const __le16 utf16_slash = cpu_to_le16(0x002F);
+	static const __le16 utf16_null = cpu_to_le16(0x0000);
+	size64_t in_size;
 
 	ctx->local_path[0] = '\0';
 
@@ -266,13 +271,13 @@ int exfat_resolve_path(struct path_resolve_ctx *ctx, struct exfat_inode *child)
 		memcpy((char *)utf16_path, (char *)ctx->ancestors[i]->name,
 		       name_len * 2);
 		utf16_path += name_len;
-		*utf16_path = UTF16_SLASH;
+		memcpy((char *)utf16_path, &utf16_slash, sizeof(utf16_slash));
 		utf16_path++;
 	}
 
 	if (depth > 1)
 		utf16_path--;
-	*utf16_path = UTF16_NULL;
+	memcpy((char *)utf16_path, &utf16_null, sizeof(utf16_null));
 	utf16_path++;
 
 	in_size = (utf16_path - ctx->utf16_path) * sizeof(__le16);
